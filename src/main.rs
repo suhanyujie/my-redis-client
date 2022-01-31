@@ -1,4 +1,6 @@
 extern crate redis as t_redis;
+#[macro_use]
+extern crate lazy_static;
 
 use t_redis::Commands;
 
