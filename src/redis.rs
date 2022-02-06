@@ -24,18 +24,26 @@ fn get_conn() -> t_redis::RedisResult<Option<Connection>> {
 /// 获取 redis db
 fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
     let mut dbs: Vec<u8> = vec![];
-    let res = t_redis::cmd("config").arg("get").arg("databases").query::<Value>(conn)?;
+    let res = t_redis::cmd("config")
+        .arg("get")
+        .arg("databases")
+        .query::<Value>(conn)?;
     if let t_redis::Value::Bulk(db_info) = res {
         if db_info.len() == 2 {
             let db_num_val = &db_info[1];
             match db_num_val {
-                t_redis::Value::Status(ref s1) =>{
-                    let db_num = s1[..].parse::<u8>().unwrap();
-                    for i in 0..db_num {
-                        dbs.push(i);
+                t_redis::Value::Data(ref s1) => {
+                    match std::str::from_utf8(s1) {
+                        Ok(str1) => {
+                            let db_num = str1.parse::<u8>().unwrap();
+                            for i in 0..db_num {
+                                dbs.push(i);
+                            }
+                        }
+                        Err(_) => {}
                     }
                 },
-                _=>{}
+                _ => {}
             }
         }
     }
@@ -84,6 +92,7 @@ mod tests {
         let conn_op = conn_res.unwrap();
         conn_op.map(|mut conn| {
             let res = get_redis_db(&mut conn);
+            dbg!(&res);
             assert!(res.is_ok());
         });
     }
