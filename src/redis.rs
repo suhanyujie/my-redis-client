@@ -1,6 +1,7 @@
+use redis::Value;
 use t_redis::Connection;
 
-lazy_static!{
+lazy_static! {
     /// 静态变量，存储 redis 连接实例
     static ref REDIS_CONN: Option<Connection> = {
         let conn_info = get_conn();
@@ -21,9 +22,25 @@ fn get_conn() -> t_redis::RedisResult<Option<Connection>> {
 }
 
 /// 获取 redis db
-fn get_redis_db() -> crate::error::Result<Vec<u8>> {
+fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
     let mut dbs: Vec<u8> = vec![];
-    Ok(dbs)
+    let res = t_redis::cmd("config").arg("get").arg("databases").query::<Value>(conn)?;
+    if let t_redis::Value::Bulk(db_info) = res {
+        if db_info.len() == 2 {
+            let db_num_val = &db_info[1];
+            match db_num_val {
+                t_redis::Value::Status(ref s1) =>{
+                    let db_num = s1[..].parse::<u8>().unwrap();
+                    for i in 0..db_num {
+                        dbs.push(i);
+                    }
+                },
+                _=>{}
+            }
+        }
+    }
+
+    return Ok(dbs);
 }
 
 /// 选择使用的 redis 数据库
@@ -57,11 +74,17 @@ fn serve() {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::BorrowMut;
+
     use super::*;
 
     #[test]
     fn test_get_redis_db() {
-        let res = get_redis_db();
-        assert!(res.is_ok());
+        let conn_res = get_conn();
+        let conn_op = conn_res.unwrap();
+        conn_op.map(|mut conn| {
+            let res = get_redis_db(&mut conn);
+            assert!(res.is_ok());
+        });
     }
 }
