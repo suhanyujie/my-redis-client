@@ -1,17 +1,56 @@
 use redis::Value;
+use std::sync::Mutex;
 use t_redis::Connection;
 
 lazy_static! {
     /// 静态变量，存储 redis 连接实例
-    static ref REDIS_CONN: Option<Connection> = {
+    pub static ref REDIS_CONN: Mutex<Option<Connection>> = {
         let conn_info = get_conn();
         if conn_info.is_ok() {
-            return conn_info.unwrap();
+            return Mutex::new(conn_info.unwrap());
         } else {
             // 打印一些错误信息 todo
-            return None;
+            return Mutex::new(None);
         }
     };
+}
+
+pub struct RedisConfig {
+    /// 连接地址
+    address: String,
+    /// 端口
+    port: String,
+    /// 密码
+    password: String,
+    /// 数据库
+    db: String,
+}
+
+impl RedisConfig {
+    fn new() -> Self {
+        RedisConfig {
+            address: "".to_string(),
+            port: "".to_string(),
+            password: "".to_string(),
+            db: "".to_string(),
+        }
+    }
+
+    fn set_address(&mut self, host: &str) {
+        self.address = host.to_string();
+    }
+
+    fn set_port(&mut self, param: String) {
+        self.port = param;
+    }
+
+    fn set_db(&mut self, param: String) {
+        self.db = param;
+    }
+
+    fn set_password(&mut self, param: &str) {
+        self.password = param.to_string();
+    }
 }
 
 /// 获取 redis 连接实例
@@ -32,16 +71,14 @@ fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
         if db_info.len() == 2 {
             let db_num_val = &db_info[1];
             match db_num_val {
-                t_redis::Value::Data(ref s1) => {
-                    match std::str::from_utf8(s1) {
-                        Ok(str1) => {
-                            let db_num = str1.parse::<u8>().unwrap();
-                            for i in 0..db_num {
-                                dbs.push(i);
-                            }
+                t_redis::Value::Data(ref s1) => match std::str::from_utf8(s1) {
+                    Ok(str1) => {
+                        let db_num = str1.parse::<u8>().unwrap();
+                        for i in 0..db_num {
+                            dbs.push(i);
                         }
-                        Err(_) => {}
                     }
+                    Err(_) => {}
                 },
                 _ => {}
             }
@@ -52,8 +89,10 @@ fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
 }
 
 /// 选择使用的 redis 数据库
-fn use_db() {
-    todo!()
+fn use_db(conn: &mut Connection, db_num: u8) -> anyhow::Result<()> {
+    let mut dbs: Vec<u8> = vec![];
+    let res = t_redis::cmd("select").arg(db_num).query::<Value>(conn)?;
+    return Ok(());
 }
 
 fn show_help() {
@@ -82,8 +121,6 @@ fn serve() {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::BorrowMut;
-
     use super::*;
 
     #[test]
@@ -92,6 +129,17 @@ mod tests {
         let conn_op = conn_res.unwrap();
         conn_op.map(|mut conn| {
             let res = get_redis_db(&mut conn);
+            dbg!(&res);
+            assert!(res.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_use_db() {
+        let conn_res = get_conn();
+        let conn_op = conn_res.unwrap();
+        conn_op.map(|mut conn| {
+            let res = use_db(&mut conn, 1);
             dbg!(&res);
             assert!(res.is_ok());
         });
