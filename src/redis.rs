@@ -1,4 +1,4 @@
-use redis::Value;
+use redis::{Commands, Value};
 use std::sync::Mutex;
 use t_redis::Connection;
 
@@ -53,6 +53,16 @@ impl RedisConfig {
     }
 }
 
+/// 使用 redis 连接执行一些命令
+fn with_connection<F, T>(func: F) -> anyhow::Result<T>
+where
+    F: FnOnce(&mut Connection) -> anyhow::Result<T>,
+{
+    let client = t_redis::Client::open("redis://127.0.0.1/")?;
+    let mut conn = client.get_connection()?;
+    return func(&mut conn);
+}
+
 /// 获取 redis 连接实例
 fn get_conn() -> t_redis::RedisResult<Option<Connection>> {
     let client = t_redis::Client::open("redis://127.0.0.1/")?;
@@ -91,7 +101,7 @@ fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
 /// 选择使用的 redis 数据库
 fn use_db(conn: &mut Connection, db_num: u8) -> anyhow::Result<()> {
     let mut dbs: Vec<u8> = vec![];
-    let res = t_redis::cmd("select").arg(db_num).query::<Value>(conn)?;
+    t_redis::cmd("select").arg(db_num).query::<Value>(conn)?;
     return Ok(());
 }
 
@@ -100,13 +110,19 @@ fn show_help() {
 }
 
 /// 设定键值对
-fn set() {
-    todo!()
+fn set(conn: &mut Connection, k: &str, v: &str, expr_s: usize) -> anyhow::Result<()> {
+    if expr_s > 0 {
+        conn.set_ex(k, v, expr_s)?;
+    } else {
+        conn.set(k, v)?;
+    }
+    return Ok(());
 }
 
 /// 获取值
-fn get() {
-    todo!()
+fn get(conn: &mut Connection, k: &str) -> anyhow::Result<t_redis::Value> {
+    let res = conn.get(k)?;
+    return Ok(res);
 }
 
 /// 获取 redis 客户端状态
@@ -140,6 +156,27 @@ mod tests {
         let conn_op = conn_res.unwrap();
         conn_op.map(|mut conn| {
             let res = use_db(&mut conn, 1);
+            dbg!(&res);
+            assert!(res.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_set() {
+        let conn_res = get_conn();
+        let conn_op = conn_res.unwrap();
+        conn_op.map(|mut conn| {
+            let res = set(&mut conn, "test1", "su-val1", 15);
+            assert!(res.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_get() {
+         let conn_res = get_conn();
+        let conn_op = conn_res.unwrap();
+        conn_op.map(|mut conn| {
+            let res = get(&mut conn, "test1");
             dbg!(&res);
             assert!(res.is_ok());
         });
