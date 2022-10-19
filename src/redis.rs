@@ -149,6 +149,16 @@ mod tests {
             assert!(res.is_ok());
         });
     }
+    #[test]
+    fn test_get_redis_db_1() {
+        let mut conn_guard = REDIS_CONN.lock().unwrap();
+        // let conn_op = conn_res.unwrap();
+        conn_guard.as_mut().map(|conn| {
+            let res = get_redis_db(conn);
+            dbg!(&res);
+            assert!(res.is_ok());
+        });
+    }
 
     #[test]
     fn test_use_db() {
@@ -173,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_get() {
-         let conn_res = get_conn();
+        let conn_res = get_conn();
         let conn_op = conn_res.unwrap();
         conn_op.map(|mut conn| {
             let res = get(&mut conn, "test1");
