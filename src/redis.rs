@@ -70,8 +70,12 @@ fn get_conn() -> t_redis::RedisResult<Option<Connection>> {
     Ok(Some(conn))
 }
 
+pub fn get_conn_ins<'a>() -> &'a Mutex<Option<Connection>> {
+    &REDIS_CONN
+}
+
 /// 获取 redis db
-fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
+pub fn get_redis_db(conn: &mut Connection) -> anyhow::Result<Vec<u8>> {
     let mut dbs: Vec<u8> = vec![];
     let res = t_redis::cmd("config")
         .arg("get")
@@ -149,11 +153,17 @@ mod tests {
             assert!(res.is_ok());
         });
     }
+
     #[test]
     fn test_get_redis_db_1() {
-        let mut conn_guard = REDIS_CONN.lock().unwrap();
-        // let conn_op = conn_res.unwrap();
-        conn_guard.as_mut().map(|conn| {
+        // let mut conn_guard = REDIS_CONN.lock().unwrap();
+        // conn_guard.as_mut().map(|conn| {
+        //     let res = get_redis_db(conn);
+        //     dbg!(&res);
+        //     assert!(res.is_ok());
+        // });
+
+        get_conn_ins().lock().unwrap().as_mut().map(|conn| {
             let res = get_redis_db(conn);
             dbg!(&res);
             assert!(res.is_ok());

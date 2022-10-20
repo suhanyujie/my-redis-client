@@ -2,26 +2,38 @@ extern crate redis as t_redis;
 #[macro_use]
 extern crate lazy_static;
 
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 use t_redis::Commands;
 
-mod redis;
 mod error;
+mod redis;
 
 fn main() {
-    let res = hello_redis();
-    println!("res: {:?}", res);
+    let rl_res = Editor::<()>::new();
+    if let Ok(mut rl) = rl_res {
+        loop {
+            let readline = rl.readline(">> ");
+            match readline {
+                Ok(line) => match &line[..] {
+                    "quit" => {
+                        break;
+                    }
+                    "redis" => {
+                        redis::get_conn_ins().lock().unwrap().as_mut().map(|conn| {
+                            let res = redis::get_redis_db(conn);
+                            dbg!(&res);
+                            assert!(res.is_ok());
+                        });
+                    }
+                    _ => {
+                        println!("Line: {:?}", &line[..])
+                    }
+                },
+                Err(_) => {
+                    println!("Unsupport input. You can type 'quit' to exit. ");
+                }
+            }
+        }
+    }
 }
-
-fn hello_redis() -> t_redis::RedisResult<isize> {
-    // connect to redis
-    let client = t_redis::Client::open("redis://127.0.0.1/")?;
-    let mut con = client.get_connection()?;
-    // throw away the result, just make sure it does not fail
-    let _: () = con.set("my_key", 42)?;
-    // read back the key and return it.  Because the return value
-    // from the function is a result for integer this will automatically
-    // convert into one.
-    con.get("my_key")
-}
-
-

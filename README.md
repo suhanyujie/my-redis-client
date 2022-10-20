@@ -4,3 +4,4 @@
 ## 参考
 * https://github.com/fuyoo/bs-redis-desktop-client
 * 关于Rust模块系统的清晰解释 https://zhuanlan.zhihu.com/p/164556350
+* redis-cli 命令行的提示 https://github.com/octplane/rust-linenoise
