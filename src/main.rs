@@ -16,9 +16,7 @@ fn main() {
             let readline = rl.readline(">> ");
             match readline {
                 Ok(line) => match &line[..] {
-                    "quit" => {
-                        break;
-                    }
+                    "quit" => break,
                     "redis" => {
                         redis::get_conn_ins().lock().unwrap().as_mut().map(|conn| {
                             let res = redis::get_redis_db(conn);
@@ -27,7 +25,10 @@ fn main() {
                         });
                     }
                     _ => {
-                        println!("Line: {:?}", &line[..])
+                        let input_str = line[..].trim();
+                        let parser = redis::RedisCmdParser::new(input_str);
+                        let res = parser.map_cmd();
+                        println!("input param: {:?}", res);
                     }
                 },
                 Err(_) => {

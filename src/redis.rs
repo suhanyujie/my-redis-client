@@ -139,6 +139,31 @@ fn serve() {
     todo!()
 }
 
+/// 用户输入 redis 的参数解析
+pub struct RedisCmdParser<'a> {
+    raw: &'a str,
+    param_arr: Vec<String>,
+}
+
+impl<'a> RedisCmdParser<'a> {
+    pub fn new(input: &'a str) -> Self {
+        let param_arr = input
+            .split_whitespace()
+            .filter(|s| s.len() > 0)
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        RedisCmdParser {
+            raw: input,
+            param_arr: param_arr,
+        }
+    }
+
+    /// 通过输入的 cmd，执行对应的函数
+    pub fn map_cmd(&self) -> String {
+        format!("{:?}", self.param_arr)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
