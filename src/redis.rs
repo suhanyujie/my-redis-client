@@ -125,6 +125,32 @@ pub fn set(conn: &mut Connection, k: &str, v: &str, expr_s: usize) -> anyhow::Re
     return Ok(());
 }
 
+pub fn incr(conn: &mut Connection, k: &str, delta: i8) -> anyhow::Result<()> {
+    let res = conn.incr(k, delta)?;
+    dbg!(res);
+    return Ok(());
+}
+
+pub fn scan(conn: &mut Connection, cursor: i32, match_str: &str, count: u32) -> anyhow::Result<()> {
+    let mut cnt = count;
+    if count != 0 {
+        cnt = count;
+    }
+    let mut res_iter: t_redis::Iter<String> = t_redis::cmd("SCAN")
+        .cursor_arg(cursor as u64)
+        .arg("match")
+        .arg(match_str)
+        .arg("count")
+        .arg(cnt)
+        .clone()
+        .iter(conn)
+        .unwrap();
+    for item in res_iter {
+        dbg!(&item[..]);
+    }
+    return Ok(());
+}
+
 /// 获取值
 pub fn get(conn: &mut Connection, k: &str) -> anyhow::Result<t_redis::Value> {
     let res = conn.get(k)?;
@@ -183,17 +209,27 @@ mod tests {
 
     #[test]
     fn test_get_redis_db_1() {
-        // let mut conn_guard = REDIS_CONN.lock().unwrap();
-        // conn_guard.as_mut().map(|conn| {
-        //     let res = get_redis_db(conn);
-        //     dbg!(&res);
-        //     assert!(res.is_ok());
-        // });
-
         get_conn_ins().lock().unwrap().as_mut().map(|conn| {
             let res = get_redis_db(conn);
             dbg!(&res);
             assert!(res.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_set1() {
+        get_conn_ins().lock().unwrap().as_mut().map(|conn| {
+            set(conn, "mykey1", "1", 24 * 3600);
+            set(conn, "mykey2", "2", 24 * 3600);
+            set(conn, "mykey3", "3", 24 * 3600);
+        });
+    }
+
+    #[test]
+    fn test_scan1() {
+        get_conn_ins().lock().unwrap().as_mut().map(|conn| {
+            let res = scan(conn, 0, "*ke*", 2);
+            dbg!(&res);
         });
     }
 
