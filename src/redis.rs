@@ -116,7 +116,7 @@ fn show_help() {
 }
 
 /// 设定键值对
-fn set(conn: &mut Connection, k: &str, v: &str, expr_s: usize) -> anyhow::Result<()> {
+pub fn set(conn: &mut Connection, k: &str, v: &str, expr_s: usize) -> anyhow::Result<()> {
     if expr_s > 0 {
         conn.set_ex(k, v, expr_s)?;
     } else {
@@ -126,7 +126,7 @@ fn set(conn: &mut Connection, k: &str, v: &str, expr_s: usize) -> anyhow::Result
 }
 
 /// 获取值
-fn get(conn: &mut Connection, k: &str) -> anyhow::Result<t_redis::Value> {
+pub fn get(conn: &mut Connection, k: &str) -> anyhow::Result<t_redis::Value> {
     let res = conn.get(k)?;
     return Ok(res);
 }

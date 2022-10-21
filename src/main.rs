@@ -17,7 +17,7 @@ fn main() {
             let readline = rl.readline(">> ");
             match readline {
                 Ok(line) => match &line[..] {
-                    "quit" => break,
+                    "quit" | "exit" => break,
                     "redis" => {
                         redis::get_conn_ins().lock().unwrap().as_mut().map(|conn| {
                             let res = redis::get_redis_db(conn);
@@ -27,19 +27,31 @@ fn main() {
                     }
                     _ => {
                         let input_str = line[..].trim();
+                        if input_str.len() < 1 {
+                            continue;
+                        }
                         let parser = redis::RedisCmdParser::new(input_str);
                         if let Ok(cmd) = parser.map_cmd() {
-                            match cmd.cmd_type {
-                                cmd::CmdType::Get(key) => {
-                                    // todo
-                                    println!("get param: {}", key);
-                                }
-                                cmd::CmdType::Set(key, value) => {
-                                    // todo
-                                    println!("set param: {}-{}", key, value);
-                                }
-                                _ => {
-                                    eprintln!("Unknown cmd...");
+                            if let Ok(res_value) = cmd.apply() {
+                                match res_value {
+                                    t_redis::Value::Nil => {
+                                        println!("[Nil] Nil");
+                                    }
+                                    t_redis::Value::Int(v) => {
+                                        println!("[Int] {}", v);
+                                    }
+                                    t_redis::Value::Data(v) => {
+                                        println!("[Data] {}", String::from_utf8_lossy(&v));
+                                    }
+                                    t_redis::Value::Bulk(v) => {
+                                        println!("[Bulk] {:?}", v);
+                                    }
+                                    t_redis::Value::Status(v) => {
+                                        println!("[Status] {}", v);
+                                    }
+                                    t_redis::Value::Okay => {
+                                        println!("[Okay] Okay");
+                                    }
                                 }
                             }
                         } else {
