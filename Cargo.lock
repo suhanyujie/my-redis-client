@@ -230,6 +230,7 @@ dependencies = [
  "lazy_static",
  "redis",
  "rustyline",
+ "thiserror",
 ]
 
 [[package]]

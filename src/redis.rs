@@ -2,6 +2,8 @@ use redis::{Commands, Value};
 use std::sync::Mutex;
 use t_redis::Connection;
 
+use crate::cmd;
+
 lazy_static! {
     /// 静态变量，存储 redis 连接实例
     pub static ref REDIS_CONN: Mutex<Option<Connection>> = {
@@ -159,8 +161,8 @@ impl<'a> RedisCmdParser<'a> {
     }
 
     /// 通过输入的 cmd，执行对应的函数
-    pub fn map_cmd(&self) -> String {
-        format!("{:?}", self.param_arr)
+    pub fn map_cmd(&self) -> anyhow::Result<cmd::Command> {
+        cmd::Command::new(&self.param_arr)
     }
 }
 

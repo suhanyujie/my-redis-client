@@ -6,6 +6,7 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use t_redis::Commands;
 
+mod cmd;
 mod error;
 mod redis;
 
@@ -27,8 +28,23 @@ fn main() {
                     _ => {
                         let input_str = line[..].trim();
                         let parser = redis::RedisCmdParser::new(input_str);
-                        let res = parser.map_cmd();
-                        println!("input param: {:?}", res);
+                        if let Ok(cmd) = parser.map_cmd() {
+                            match cmd.cmd_type {
+                                cmd::CmdType::Get(key) => {
+                                    // todo
+                                    println!("get param: {}", key);
+                                }
+                                cmd::CmdType::Set(key, value) => {
+                                    // todo
+                                    println!("set param: {}-{}", key, value);
+                                }
+                                _ => {
+                                    eprintln!("Unknown cmd...");
+                                }
+                            }
+                        } else {
+                            eprintln!("Unknown cmd...");
+                        }
                     }
                 },
                 Err(_) => {
