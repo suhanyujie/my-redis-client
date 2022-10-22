@@ -1,6 +1,6 @@
 use redis::{Commands, Value};
-use std::sync::Mutex;
-use t_redis::Connection;
+use std::{sync::Mutex, vec};
+use t_redis::{Connection, RedisResult};
 
 use crate::cmd;
 
@@ -131,24 +131,66 @@ pub fn incr(conn: &mut Connection, k: &str, delta: i8) -> anyhow::Result<()> {
     return Ok(());
 }
 
-pub fn scan(conn: &mut Connection, cursor: i32, match_str: &str, count: u32) -> anyhow::Result<()> {
+/// scan 时返回两组数据：
+///
+/// 127.0.0.1:6379>  scan 0 MATCH *ke* COUNT 2
+/// 1) "6"
+/// 2) 1) "mykey3"
+///    2) "my_key"
+///    3) "mykey1"
+pub fn scan(
+    conn: &mut Connection,
+    cursor: i32,
+    match_str: &str,
+    count: u32,
+) -> anyhow::Result<(u32, Vec<String>)> {
     let mut cnt = count;
     if count != 0 {
         cnt = count;
     }
-    let mut res_iter: t_redis::Iter<String> = t_redis::cmd("SCAN")
+    let res: RedisResult<t_redis::Value> = t_redis::cmd("SCAN")
         .cursor_arg(cursor as u64)
         .arg("match")
         .arg(match_str)
         .arg("count")
         .arg(cnt)
-        .clone()
-        .iter(conn)
-        .unwrap();
-    for item in res_iter {
-        dbg!(&item[..]);
+        .query(conn);
+    let mut res_cursor: u32 = 0;
+    let mut res_values: Vec<String> = vec![];
+    for item in res.iter() {
+        match &item {
+            t_redis::Value::Bulk(arr) => {
+                if arr.len() == 2 {
+                    if let t_redis::Value::Data(byte_data) = &arr[0] {
+                        let tmp_str = String::from_utf8_lossy(&byte_data[..]);
+                        if let Ok(num) = tmp_str.parse::<u32>() {
+                            res_cursor = num;
+                        }
+                    }
+                    // 解析匹配到的数据 todo
+                    if let t_redis::Value::Bulk(value_arr) = &arr[1] {
+                        res_values = value_arr
+                            .iter()
+                            .filter_map(|v| {
+                                if let t_redis::Value::Data(byte_data) = v {
+                                    let tmp_str = String::from_utf8_lossy(&byte_data[..]);
+                                    Some(tmp_str.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<String>>();
+                    }
+                }
+            }
+            _ => {
+                dbg!(item);
+            }
+        }
+        // dbg!(&item[..]);
     }
-    return Ok(());
+
+    return Ok((res_cursor, res_values));
 }
 
 /// 获取值
@@ -194,6 +236,8 @@ impl<'a> RedisCmdParser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use t_redis::RedisResult;
+
     use super::*;
 
     #[test]
@@ -230,6 +274,21 @@ mod tests {
         get_conn_ins().lock().unwrap().as_mut().map(|conn| {
             let res = scan(conn, 0, "*ke*", 2);
             dbg!(&res);
+        });
+    }
+
+    #[test]
+    fn test_scan2() {
+        // t_redis::cmd("MEMORY").arg("USAGE").arg("my_key").query(con)
+        get_conn_ins().lock().unwrap().as_mut().map(|conn| {
+            let res: RedisResult<t_redis::Value> = t_redis::cmd("SCAN")
+                .arg("0")
+                .arg("match")
+                .arg("*ke*")
+                .arg("count")
+                .arg(2)
+                .query(conn);
+            dbg!(res);
         });
     }
 
